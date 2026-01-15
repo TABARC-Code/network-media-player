@@ -1,0 +1,8 @@
+Flask==3.0.0
+pychromecast==13.0.0
+spotipy==2.23.0
+soco==0.29.0
+python-dotenv==1.0.0
+zeroconf==0.119.0
+requests==2.31.0
+mutagen==1.47.0
