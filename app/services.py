@@ -5,8 +5,8 @@
 # - Chromecast will often report IDLE just after you tell it to play. Treat early status as noise.
 # - If you clear “current device” too early, the monitor thread will start the next track while the last one
 #   is still winding down. That is how you get overlap and “it skips every other track” complaints.
-# - We keep a real STOPPING phase: send stop, then wait for the device to actually stop (or time out).
-# - Spotify monitoring is not polled here. Polling costs quota. If you want accuracy, you pay for it.
+# - We kept a real STOPPING phase: send stop, then wait for the device to actually stop (or time out).
+# - Spotify monitoring is not polled here. Polling costs quota. If you want accuracy, you pay for it. and i cant be arsed to sort ut.
 
 import os
 import threading
