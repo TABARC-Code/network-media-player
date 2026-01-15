@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Media Player</title>
+    <style>
+        :root { --primary: #1db954; --bg: #121212; --card: #181818; --text: #fff; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 900px; margin: 0 auto; }
+        .card { background: var(--card); padding: 20px; margin-bottom: 20px; border-radius: 8px; }
+        a { color: var(--primary); text-decoration: none; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-play { background: var(--primary); }
+        .btn-stop { background: #e91429; width: 100%; margin-top: 10px; }
+        select, input { padding: 8px; background: #333; color: white; border: 1px solid #444; width: 100%; box-sizing: border-box; margin: 5px 0;}
+
+        .track-list { list-style: none; padding: 0; }
+        .track-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #333; }
+        .track-img { width: 50px; height: 50px; background: #333; margin-right: 15px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+        .track-info { flex-grow: 1; }
+        .track-meta { font-size: 0.85em; color: #aaa; }
+        .mini-form { display: flex; align-items: center; gap: 5px; }
+        .mini-select { width: 120px; padding: 5px; font-size: 0.8em; }
+        .mini-btn { padding: 5px 10px; font-size: 0.8em; }
+
+        .queue-box { background: #222; padding: 10px; border: 1px solid #444; margin-bottom: 20px; }
+        .queue-item { font-size: 0.9em; padding: 5px; border-bottom: 1px solid #333; color: #aaa; }
+        .btn-queue { background: #333; border: 1px solid #777; font-size: 0.8em; padding: 5px 10px; color: white; }
+
+        .alert { padding: 10px; margin-bottom: 10px; border-radius: 4px; background: #333; border: 1px solid #555; }
+        .success { border-color: var(--primary); color: var(--primary); }
+        .error { border-color: #e91429; color: #e91429; }
+        .info { border-color: #444; color: #aaa; }
+    </style>
+</head>
+<body>
+    <h1>🎵 Network Media Player</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <h3>Status</h3>
+        {% if spotify_logged_in %}
+            <span style="color: var(--primary)">✅ Spotify Connected</span>
+        {% else %}
+            <a href="{{ url_for('main.login') }}"><button class="btn" style="background:white; color:black">Login to Spotify</button></a>
+        {% endif %}
+
+        <form action="{{ url_for('main.stop') }}" method="post">
+            <button class="btn btn-stop">■ STOP ALL PLAYBACK</button>
+        </form>
+    </div>
+
+    <div class="card queue-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>📋 Up Next ({{ queue|length }})</h3>
+            <form action="{{ url_for('main.next_track') }}" method="post" style="margin:0">
+                <button class="btn btn-queue">⏭ Next</button>
+            </form>
+        </div>
+
+        {% if queue %}
+            <ol style="padding-left: 20px; margin-top: 10px;">
+                {% for item in queue %}
+                    <li class="queue-item">
+                        <strong>{{ item.title }}</strong>
+                        <span style="font-size: 0.8em">({{ item.device_name }})</span>
+                    </li>
+                {% endfor %}
+            </ol>
+        {% else %}
+            <div style="padding: 10px; color: #555;">Queue is empty</div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Manual Controls</h3>
+        <form action="{{ url_for('main.play') }}" method="post">
+            <select name="device_name" required>
+                <option value="" disabled selected>Select Device...</option>
+                {% for device in devices %}
+                    <option value="{{ device }}">{{ device }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" name="track_uri" placeholder="Spotify URI (spotify:album:...)">
+            <input type="text" name="file_url" placeholder="Direct HTTP URL (http://...)">
+            <button type="submit" name="action" value="play_now" class="btn btn-play">Play Now</button>
+            <button type="submit" name="action" value="queue" class="btn btn-queue" style="width:auto; float:right;">+ Queue</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>📂 Local Library</h3>
+
+        <div style="margin-bottom: 15px; background: #222; padding: 10px;">
+            Current: /{{ current_path }}
+            {% if parent_path is not none %} <a href="{{ url_for('main.index', path=parent_path) }}">[⬆ Up]</a> {% endif %}
+
+            <form action="{{ url_for('main.queue_folder') }}" method="post" style="margin-top: 10px;">
+                <input type="hidden" name="folder_path" value="{{ current_path }}">
+                <select name="device_name" required style="width:auto;">
+                    <option value="" disabled selected>Device...</option>
+                    {% for device in devices %}
+                        <option value="{{ device }}">{{ device }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-queue">➕ Queue Folder</button>
+            </form>
+        </div>
+
+        <ul class="track-list">
+            {% for folder in folders %}
+                <li class="track-item">
+                    <span style="font-size: 2em; margin-right: 15px;">📁</span>
+                    <a href="{{ url_for('main.index', path=(current_path + '/' + folder) if current_path else folder) }}">{{ folder }}</a>
+                </li>
+            {% endfor %}
+
+            {% for file in files %}
+                <li class="track-item">
+                    <img src="/static/default_album.png"
+                         class="track-img lazy-load"
+                         data-artist="{{ file.artist }}"
+                         data-album="{{ file.album }}"
+                         alt="Art">
+
+                    <div class="track-info">
+                        <strong>{{ file.title }}</strong><br>
+                        <span class="track-meta">{{ file.artist }}{% if file.album %} • {{ file.album }}{% endif %}</span>
+                    </div>
+
+                    <form action="{{ url_for('main.play') }}" method="post" class="mini-form">
+                        <input type="hidden" name="file_rel_path"
+                               value="{% if current_path %}{{ current_path }}/{{ file.filename }}{% else %}{{ file.filename }}{% endif %}">
+
+                        <select name="device_name" class="mini-select" required>
+                            <option value="" disabled selected>Dev...</option>
+                            {% for device in devices %}
+                                <option value="{{ device }}">{{ device }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="submit" name="action" value="play_now" class="btn btn-play mini-btn">▶</button>
+                        <button type="submit" name="action" value="queue" class="btn btn-queue mini-btn">➕</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+    (() => {
+        // Cover art loading:
+        // - lazy load when near the viewport
+        // - cap concurrency so big folders do not spike the server
+        // - cache results per page view to avoid duplicate fetches
+
+        const seen = new Map();
+        const work = [];
+        let inflight = 0;
+        const MAX_INFLIGHT = 6;
+
+        function keyFor(artist, album) {
+            return `${(artist || '').trim().toLowerCase()}||${(album || '').trim().toLowerCase()}`;
+        }
+
+        function pump() {
+            while (inflight < MAX_INFLIGHT && work.length) {
+                const job = work.shift();
+                inflight++;
+                job().finally(() => {
+                    inflight--;
+                    pump();
+                });
+            }
+        }
+
+        function enqueue(fn) {
+            work.push(fn);
+            pump();
+        }
+
+        function fetchArt(img) {
+            const artist = img.getAttribute("data-artist") || "";
+            const album = img.getAttribute("data-album") || "";
+
+            if (!artist) return;
+            const a = artist.toLowerCase();
+            if (a === "unknown" || a === "unknown artist") return;
+
+            const k = keyFor(artist, album);
+            if (seen.has(k)) {
+                img.src = seen.get(k);
+                return;
+            }
+
+            enqueue(async () => {
+                try {
+                    const url = `/api/get_cover_art?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`;
+                    const res = await fetch(url, { headers: { "Accept": "application/json" }});
+                    const data = await res.json();
+                    const finalUrl = (data && data.url) ? data.url : "/static/default_album.png";
+                    seen.set(k, finalUrl);
+                    img.src = finalUrl;
+                } catch (e) {
+                    img.src = "/static/default_album.png";
+                }
+            });
+        }
+
+        function init() {
+            const images = document.querySelectorAll("img.lazy-load");
+
+            if (!("IntersectionObserver" in window)) {
+                images.forEach(fetchArt);
+                return;
+            }
+
+            const io = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    observer.unobserve(entry.target);
+                    fetchArt(entry.target);
+                });
+            }, { rootMargin: "300px" });
+
+            images.forEach(img => io.observe(img));
+        }
+
+        document.addEventListener("DOMContentLoaded", init);
+    })();
+    </script>
+</body>
+</html>
