@@ -34,3 +34,27 @@ Plugin URI: https://github.com/TABARC-Code/
 ```bash
 docker-compose up -d --build
 
+## Open:
+
+http://YOUR_HOST_IP:5000
+
+### Cover art placeholder
+
+The UI expects a placeholder file at:
+
+app/static/default_album.png
+
+A simple 1x1 PNG is provided in this repo. Replace it with any square image you like.
+
+### Notes on monitoring
+
+Chromecast status can be unreliable at start of playback.
+We use:
+
+a grace period (PLAYBACK_GRACE_SECONDS)
+
+a STOPPING state (do not advance until the device is actually stopped)
+
+a stop timeout (PLAYBACK_STOP_TIMEOUT_SECONDS) to prevent dead queues
+
+If you want more responsiveness, lower PLAYBACK_POLL_SECONDS, but do not pretend that comes free
