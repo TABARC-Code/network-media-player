@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  music-daemon:
+    build: .
+    container_name: music-daemon
+    restart: unless-stopped
+
+    # Required for Chromecast and Sonos discovery on most setups.
+    network_mode: host
+
+    env_file:
+      - .env
+
+    volumes:
+      # Persist Spotify auth cache
+      - spotify_cache:/app/.cache_volume
+
+      # Map your local music folder to container read-only.
+      # Change /path/to/your/music to an actual path on your host.
+      - /path/to/your/music:/app/media:ro
+
+volumes:
+  spotify_cache:
